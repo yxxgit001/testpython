@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB Quota Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #status { margin-top: 10px; white-space: pre-wrap; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB Quota Test</h1>
+    <p>This script writes data to IndexedDB until the quota is reached.</p>
+    <button id="startBtn">Start Filling IndexedDB</button>
+    <button id="clearBtn">Clear Database</button>
+    <div id="statusInfo"></div>
+    <div id="status"></div>
+
+    <script>
+        const DB_NAME = 'QuotaTestDB';
+        const STORE_NAME = 'BigStore';
+        const CHUNK_SIZE = 1024 * 1024; // 1MB per chunk
+        // Create a 1MB string
+        const chunk = new Array(CHUNK_SIZE + 1).join('X'); 
+        
+        let db;
+        let count = 0;
+        let isRunning = false;
+
+        const statusInfo = document.getElementById('statusInfo');
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (type === 'error') div.className = 'error';
+            if (type === 'success') div.className = 'success';
+            statusDiv.appendChild(div);
+            // Scroll to bottom
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        async function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+
+                request.onerror = (event) => {
+                    log('Error opening database: ' + event.target.error, 'error');
+                    reject(event.target.error);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { autoIncrement: true });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+            });
+        }
+
+        function writeChunk() {
+            if (!isRunning) return;
+
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            // Try to add the chunk
+            const request = store.add(chunk);
+
+            request.onsuccess = () => {
+                count++;
+                const totalMB = count;
+                
+                if (navigator.storage && navigator.storage.estimate) {
+                    navigator.storage.estimate().then(estimate => {
+                        const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+                        const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(2);
+                        const percent = ((estimate.usage / estimate.quota) * 100).toFixed(2);
+                        statusInfo.innerHTML = `[${new Date().toLocaleTimeString()}] Written ${totalMB} MB chunks.<br>` +
+                                              `Storage Estimate: ${usedMB} MB used / ${quotaMB} MB quota (${percent}%)`;
+                    });
+                } else {
+                    statusInfo.innerHTML = `[${new Date().toLocaleTimeString()}] Written ${totalMB} MB so far...`;
+                }
+                
+                // Schedule next write immediately
+                // Using setTimeout to avoid blocking the UI thread completely, 
+                // though for max speed you might use a loop or requestAnimationFrame
+                // but we need to let the transaction commit.
+                // Actually, reusing transaction or new transaction? 
+                // New transaction for each chunk is safer to commit progressively.
+                setTimeout(writeChunk, 0);
+            };
+
+            request.onerror = (event) => {
+                event.preventDefault(); // Prevent transaction abort error from bubbling up aggressively if we handle it
+                const error = event.target.error;
+                if (error.name === 'QuotaExceededError') {
+                    isRunning = false;
+                    log(`\nQuota Exceeded!`, 'error');
+                    log(`Total written: ${count} MB`, 'success');
+                    log(`Error details: ${error.message}`, 'error');
+                    startBtn.disabled = false;
+                } else {
+                    log(`Error writing data: ${error.name} - ${error.message}`, 'error');
+                    isRunning = false;
+                    startBtn.disabled = false;
+                }
+            };
+            
+            transaction.onabort = (event) => {
+                 const error = event.target.error;
+                 if (error && error.name === 'QuotaExceededError') {
+                    // Already handled in request.onerror usually, but just in case
+                 }
+            };
+        }
+
+        startBtn.addEventListener('click', async () => {
+            if (isRunning) return;
+            
+            try {
+                if (!db) await openDB();
+                
+                isRunning = true;
+                count = 0;
+                startBtn.disabled = true;
+                statusDiv.innerHTML = '';
+                log('Starting to fill IndexedDB...');
+                writeChunk();
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (isRunning) {
+                log('Please wait for the current process to finish or reload the page.', 'error');
+                return;
+            }
+            const req = indexedDB.deleteDatabase(DB_NAME);
+            req.onsuccess = () => {
+                log('Database deleted successfully.', 'success');
+                db = null;
+                count = 0;
+            };
+            req.onerror = () => {
+                log('Error deleting database.', 'error');
+            };
+        });
+    </script>
+</body>
+</html>
