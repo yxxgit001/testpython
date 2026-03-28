@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Map, Trophy, Users, BookOpen } from 'lucide-react';
+import { Home, Map, Trophy, BookOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const navItems = [
@@ -8,7 +8,6 @@ const navItems = [
   { path: '/courses', name: '学习', icon: Map },
   { path: '/practice', name: '练习', icon: BookOpen },
   { path: '/profile', name: '成就', icon: Trophy },
-  { path: '/community', name: '社区', icon: Users },
 ];
 
 export function Sidebar() {

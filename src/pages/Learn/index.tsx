@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, Heart, Volume2, Mic, Check } from 'lucide-react';
+import { X, Heart, Volume2, Mic, Check, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import { useStore } from '../../store/useStore';
 
 const lessonData = [
   {
@@ -29,14 +30,16 @@ const lessonData = [
 export default function Learn() {
   const navigate = useNavigate();
   const { lessonId } = useParams();
+  const addXp = useStore((state) => state.addXp);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [status, setStatus] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [lives, setLives] = useState(5);
+  const [isFinished, setIsFinished] = useState(false);
 
   const currentLesson = lessonData[currentStep];
-  const progress = ((currentStep) / lessonData.length) * 100;
+  const progress = isFinished ? 100 : ((currentStep) / lessonData.length) * 100;
 
   const handleCheck = () => {
     if (currentLesson.type === 'speaking') {
@@ -59,9 +62,39 @@ export default function Learn() {
       setStatus('idle');
     } else {
       // Finished
-      navigate('/');
+      setIsFinished(true);
+      addXp(15);
     }
   };
+
+  if (isFinished) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center font-sans p-6">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-center space-y-8 max-w-md"
+        >
+          <div className="w-32 h-32 bg-yellow-100 rounded-full flex items-center justify-center mx-auto shadow-soft border-4 border-yellow-50">
+            <Trophy className="w-16 h-16 text-yellow-500 fill-yellow-500" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black text-gray-900 mb-4">太棒了！</h1>
+            <p className="text-xl text-gray-500 font-bold mb-8">你完成了本节课程并获得了经验值</p>
+            <div className="inline-flex items-center gap-2 bg-yellow-50 text-yellow-600 px-6 py-3 rounded-2xl font-black text-2xl border-2 border-yellow-200">
+              +15 XP
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate('/')}
+            className="w-full btn-primary py-4 text-xl"
+          >
+            继续前进
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">

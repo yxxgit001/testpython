@@ -67,11 +67,15 @@ export default function Home() {
             </h3>
             <div className="space-y-4">
               {[
-                { title: '完成 1 个新关卡', xp: 50, progress: 0, total: 1, icon: Play, color: 'text-blue-500', bg: 'bg-blue-100' },
-                { title: '复习 20 个单词', xp: 20, progress: 12, total: 20, icon: BookOpen, color: 'text-mint-600', bg: 'bg-mint-100' },
-                { title: '练习 5 分钟口语', xp: 30, progress: 5, total: 5, icon: Clock, color: 'text-coral-500', bg: 'bg-coral-100' },
+                { id: 'random-1', title: '完成 1 个新关卡', xp: 50, progress: 0, total: 1, icon: Play, color: 'text-blue-500', bg: 'bg-blue-100' },
+                { id: 'random-2', title: '复习 20 个单词', xp: 20, progress: 12, total: 20, icon: BookOpen, color: 'text-mint-600', bg: 'bg-mint-100' },
+                { id: 'random-3', title: '练习 5 分钟口语', xp: 30, progress: 5, total: 5, icon: Clock, color: 'text-coral-500', bg: 'bg-coral-100' },
               ].map((task, i) => (
-                <div key={i} className="card-3d flex items-center gap-4 hover:border-violet-200 transition-colors cursor-pointer">
+                <div 
+                  key={i} 
+                  onClick={() => navigate(`/learn/${task.id}`)}
+                  className="card-3d flex items-center gap-4 hover:border-violet-200 transition-colors cursor-pointer"
+                >
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${task.bg}`}>
                     <task.icon className={`w-6 h-6 ${task.color}`} />
                   </div>
